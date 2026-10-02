@@ -1,0 +1,196 @@
+@baseUrl = http://localhost:8082
+@token = eyJraWQiOiJCZnRMQ1VENWY1cS1pRFJmdEdGZUhNb2ZQSjJ1dlhIUFFMdnlDWU42Y3kwIiwiYWxnIjoiSFMyNTYifQ.eyJpc3MiOiJtYXJrZXRwbGFjZS1kZXNhZmlvLWFwaSIsInN1YiI6Im1hcmlhbmFAZXhhbXBsZS5jb20iLCJub21lIjoiTWFyaWFuYSBDb3N0YSIsImV4cCI6MTc5MDk2MDE1MSwiaWF0IjoxNzkwOTU5MjUxLCJ1c3VhcmlvSWQiOjF9.YW27ygO99Sw0gedxKbb5jlx-EuGmIaiTgQCA3usOd2s
+
+### Swagger
+GET {{baseUrl}}/v3/api-docs
+
+###############################################################################
+# 1. CAMINHO FELIZ (DO CADASTRO AO PAGAMENTO APROVADO)
+###############################################################################
+
+### Cadastro público de usuário (201 Created)
+POST {{baseUrl}}/api/usuarios
+Content-Type: application/json
+
+{
+  "nome": "Mariana Costa",
+  "email": "mariana@example.com",
+  "senha": "Senha@123"
+}
+
+### Login público — Copie o accessToken retornado para a variável @token no topo (200 OK)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "mariana@example.com",
+  "senha": "Senha@123"
+}
+
+### Consultar usuário por ID protegido — sem expor senha/hash (200 OK)
+GET {{baseUrl}}/api/usuarios/1
+Authorization: Bearer {{token}}
+
+### Catálogo público — listar todos (200 OK)
+GET {{baseUrl}}/api/produtos
+
+### Catálogo público — buscar produto por ID e conferir estoque antes da compra (200 OK)
+GET {{baseUrl}}/api/produtos/1
+
+### Cadastrar novo produto protegido (201 Created)
+POST {{baseUrl}}/api/produtos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Monitor Gamer 27",
+  "descricao": "Monitor Full HD 144Hz IPS",
+  "preco": 1199.90,
+  "estoque": 10,
+  "ativo": true
+}
+
+### Atualizar produto protegido (200 OK)
+PUT {{baseUrl}}/api/produtos/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nome": "Teclado mecânico ABNT2",
+  "descricao": "Teclado com switch blue e iluminação LED",
+  "preco": 299.90,
+  "estoque": 15,
+  "ativo": true
+}
+
+### Repor estoque de produto protegido (200 OK)
+PATCH {{baseUrl}}/api/produtos/1/estoque
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "quantidade": 5
+}
+
+### Criar carrinho protegido (201 Created)
+POST {{baseUrl}}/api/carrinhos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "usuarioId": 1,
+  "produtoId": 1,
+  "quantidade": 2
+}
+
+### Consultar carrinho por ID protegido (200 OK)
+GET {{baseUrl}}/api/carrinhos/1
+Authorization: Bearer {{token}}
+
+### Listar carrinhos do usuário protegido (200 OK)
+GET {{baseUrl}}/api/carrinhos/usuario/1
+Authorization: Bearer {{token}}
+
+### Alterar quantidade do carrinho aberto protegido (200 OK)
+PATCH {{baseUrl}}/api/carrinhos/1/quantidade
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "quantidade": 3
+}
+
+### Criar confirmação de pagamento protegida — nasce PENDENTE (201 Created)
+POST {{baseUrl}}/api/pagamentos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "carrinhoId": 1,
+  "usuarioId": 1,
+  "idPagamento": "PAY-2026-000123"
+}
+
+### Consultar confirmação de pagamento protegida (200 OK)
+GET {{baseUrl}}/api/pagamentos/1
+Authorization: Bearer {{token}}
+
+### Aprovar pagamento protegido — baixa estoque e finaliza carrinho na transação (200 OK)
+PATCH {{baseUrl}}/api/pagamentos/1/aprovar
+Authorization: Bearer {{token}}
+
+### Conferir saldo de estoque do produto após pagamento aprovado (200 OK)
+GET {{baseUrl}}/api/produtos/1
+
+
+###############################################################################
+# 2. FLUXOS ALTERNATIVOS (RECUSA DE PAGAMENTO E CANCELAMENTO DE CARRINHO)
+###############################################################################
+
+### Recusar pagamento pendente protegido (200 OK)
+PATCH {{baseUrl}}/api/pagamentos/2/recusar
+Authorization: Bearer {{token}}
+
+### Cancelar carrinho aberto protegido (204 No Content)
+DELETE {{baseUrl}}/api/carrinhos/2
+Authorization: Bearer {{token}}
+
+
+###############################################################################
+# 3. CENÁRIOS DE FALHA OBRIGATÓRIOS (EVIDÊNCIAS DE ERROS 400, 401, 404 E 409)
+###############################################################################
+
+### [400 Bad Request] Dados inválidos no request (@Valid)
+POST {{baseUrl}}/api/usuarios
+Content-Type: application/json
+
+{
+  "nome": "",
+  "email": "email-invalido",
+  "senha": "123"
+}
+
+### [401 Unauthorized] Credenciais inválidas no login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "mariana@example.com",
+  "senha": "SenhaIncorreta@999"
+}
+
+### [401 Unauthorized] Rota protegida chamada sem Bearer token
+GET {{baseUrl}}/api/usuarios/1
+
+### [404 Not Found] Recurso inexistente
+GET {{baseUrl}}/api/produtos/99999
+
+### [409 Conflict] Tentativa de compra sem estoque suficiente
+POST {{baseUrl}}/api/carrinhos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "usuarioId": 1,
+  "produtoId": 1,
+  "quantidade": 9999
+}
+
+### [409 Conflict] Tentativa de cadastrar e-mail duplicado
+POST {{baseUrl}}/api/usuarios
+Content-Type: application/json
+
+{
+  "nome": "Mariana Duplicada",
+  "email": "MARIANA@EXAMPLE.COM",
+  "senha": "Senha@123"
+}
+
+### [409 Conflict] Tentativa de alterar carrinho já finalizado
+PATCH {{baseUrl}}/api/carrinhos/1/quantidade
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "quantidade": 1
+}
